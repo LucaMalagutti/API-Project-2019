@@ -4,7 +4,7 @@
 
 #define MAX_TYPES_OF_RELATIONS 6
 #define MAX_RELATION_KEY_BUFFER_LENGTH 100
-#define RELATION_KEY_SEPARATOR "&"
+#define RELATION_KEY_SEPARATOR "|"
 
 typedef struct node {
     char color;
@@ -33,8 +33,10 @@ void RB_transplant(node **T_root, node *u, node *v);
 node *RB_minimum(node *T_root);
 void RB_delete(node **T_root, node *z);
 void RB_delete_fixup(node **T_root, node *x);
+void empty_tree(node **T_root);
 void addent(char *entity);
 void addrel(char *sender, char *receiver, char *relation_name);
+void delrel(char *sender, char *receiver, char *relation_name);
 
 node T_nil;
 node *ent_root;
@@ -90,20 +92,19 @@ int main(void) {
         }
     }
     free(input_line);
-    printf("STARTING ENTITIES INORDER WALK\n");
-    in_order_walk(ent_root);
+//    printf("STARTING ENTITIES INORDER WALK\n");
+//    in_order_walk(ent_root);
 //    printf("STARTING REL 0 RECEIVER INORDER WALK\n");
 //    printf("%s\n", relations[0]->name);
 //    in_order_walk(relations[0]->tree);
 //    printf("STARTING REL 1 SENDER INORDER WALK\n");
 //    printf("%s\n", relations[1]->name);
 //    in_order_walk(relations[1]->tree);
-    node *my_node = node_search(ent_root,"\"Hannis_Gruer\"");
-    RB_delete(&ent_root, my_node);
-    printf("\nSTARTING ENTITIES INORDER WALK\n");
-    in_order_walk(ent_root);
-    free(my_node->key);
-    free(my_node);
+//    node *my_node = node_search(ent_root,"\"Hannis_Gruer\"");
+//    RB_delete(&ent_root, my_node);
+//    empty_tree(&ent_root);
+//    printf("\nSTARTING ENTITIES INORDER WALK\n");
+//    in_order_walk(ent_root);
     return 0;
 }
 
@@ -120,7 +121,8 @@ void input_function_picker(char *input_array[]) {
         printf("DELENT\n");
     }
     else if (strcmp(input_array[0], "delrel") == 0) {
-        printf("DELREL\n");
+        //printf("DELREL\n");
+        delrel(input_array[1], input_array[2], input_array[3]);
     }
     else {
         printf("INPUT NOT RECOGNIZED\n");
@@ -251,10 +253,10 @@ void RB_insert_fixup(node **T_root, node *z) {
     while (z->p->color == 'r') {
         if (z->p == z->p->p->left) {
             //printf("called insert fixup left\n");
-            node y = *z->p->p->right;
-            if (y.color == 'r') {
+            node *y = z->p->p->right;
+            if (y->color == 'r') {
                 z->p->color = 'b';
-                y.color = 'b';
+                y->color = 'b';
                 z->p->p->color = 'r';
                 z = z->p->p;
             }
@@ -270,10 +272,10 @@ void RB_insert_fixup(node **T_root, node *z) {
         }
         else {
             //printf("called insert fixup right\n");
-            node y = *z->p->p->left;
-            if (y.color == 'r') {
+            node *y = z->p->p->left;
+            if (y->color == 'r') {
                 z->p->color = 'b';
-                y.color = 'b';
+                y->color = 'b';
                 z->p->p->color = 'r';
                 z = z->p->p;
             }
@@ -326,7 +328,6 @@ void RB_delete(node **T_root, node *z) {
             x = z->left;
             RB_transplant(T_root, z, z->left);
         } else {
-            printf("called HERE\n");
             y = RB_minimum(z->right);
             y_original_color = y->color;
             x = y->right;
@@ -334,6 +335,8 @@ void RB_delete(node **T_root, node *z) {
                 x->p = y;
             } else {
                 RB_transplant(T_root, y, y->right);
+                y->right = z->right;
+                y->right->p = y;
             }
             RB_transplant(T_root, z, y);
             y->left = z->left;
@@ -343,6 +346,11 @@ void RB_delete(node **T_root, node *z) {
         if (y_original_color == 'b') {
             RB_delete_fixup(T_root, x);
         }
+        if (y != z) {
+            y = z;
+        }
+        free(y->key);
+        free(y);
     }
 }
 
@@ -366,6 +374,7 @@ void RB_delete_fixup(node **T_root, node *x) {
                     w->left->color = 'b';
                     w->color = 'r';
                     right_rotate(T_root, w);
+                    w = x->p->right;
                 }
                 w->color = x->p->color;
                 x->p->color = 'b';
@@ -391,6 +400,7 @@ void RB_delete_fixup(node **T_root, node *x) {
                     w->right->color = 'b';
                     w->color = 'r';
                     left_rotate(T_root, w);
+                    w = x->p->left;
                 }
                 w->color = x->p->color;
                 x->p->color = 'b';
@@ -403,14 +413,21 @@ void RB_delete_fixup(node **T_root, node *x) {
     x->color = 'b';
 }
 
+void empty_tree(node **T_root) {
+    while (*T_root != &T_nil) {
+        RB_delete(T_root, *T_root);
+    }
+}
+
 void addent(char *entity) {
+    //printf("called addrel %s\n", entity);
     if (search(ent_root, entity) == 0) {
         node *ent = malloc(sizeof(node));
         ent->key = strdup(entity);
         RB_insert(&ent_root, ent);
     }
     else {
-        //printf("%s already present in tree\n", ent->key);
+        //printf("%s already present in tree\n", entity);
     }
 }
 
@@ -456,4 +473,26 @@ void addrel(char *sender, char *receiver, char *relation_name) {
 //    else {
 //        printf("ENTITY NOT PRESENT\n");
 //    }
+}
+
+void delrel(char *sender, char *receiver, char *relation_name) {
+    char result[MAX_RELATION_KEY_BUFFER_LENGTH];
+    strcpy(result,receiver);
+    strcat(result, RELATION_KEY_SEPARATOR);
+    strcat(result,sender);
+    char *relation_key = result;
+
+    int index = -1;
+    for (int i=0; i<=relations_index; i++) {
+        if (strcmp(relation_name,relations[i]->name) == 0) {
+            index = i;
+        }
+    }
+    if (search(ent_root, receiver) == 1 && search(ent_root, sender) == 1) {
+        if (index >= 0 && search(relations[index]->tree, relation_key) == 1) {
+            //OPTIMIZE
+            node *relation_node_to_delete = node_search(relations[index]->tree, relation_key);
+            RB_delete(&relations[index]->tree, relation_node_to_delete);
+        }
+    }
 }
